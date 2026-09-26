@@ -4,9 +4,6 @@ import app from "./src/app.js";
 import connectDb from "./src/config/db.js";
 import { connectRedis } from "./src/config/redis.js";
 
-import dns from "dns";
-dns.setServers(["1.1.1.1","8.8.8.8"]);
-
 
 const startServer = async ()=>{
     try{

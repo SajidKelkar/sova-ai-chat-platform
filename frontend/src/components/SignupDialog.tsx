@@ -151,7 +151,7 @@ export function SignupDialog({ onClose, onNavigate }: SignupDialogProps) {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 6 characters"
+                placeholder="At least 8 characters"
                 className="input-field pl-10"
                 autoComplete="new-password"
                 disabled={loading}
