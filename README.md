@@ -425,8 +425,8 @@ VITE_API_BASE_URL=http://localhost:3000
 ## 1. Clone the repository
 
 ```bash
-git clone https://github.com/SajidKelkar/ai-chat-platform.git
-cd ai-chat-platform
+git clone https://github.com/SajidKelkar/sova-ai-chat-platform.git
+cd sova-ai-chat-platform
 ```
 
 ## 2. Install backend dependencies
