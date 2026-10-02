@@ -16,19 +16,9 @@ interface MessageInputProps {
 
 const MODELS = [
   {
-    id: 'sova-pro',
-    name: 'Sova Pro',
-    desc: 'Most capable, best for complex tasks',
-  },
-  {
-    id: 'sova-air',
-    name: 'Sova Air',
-    desc: 'Fast and lightweight for everyday use',
-  },
-  {
-    id: 'sova-mini',
-    name: 'Sova Mini',
-    desc: 'Quick responses for simple questions',
+    id: 'openrouter/free',
+    name: 'Sova Lite',
+    desc: 'Fast, free AI model via OpenRouter',
   },
 ];
 
