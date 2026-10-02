@@ -42,7 +42,7 @@ export function EmptyState({ onExampleClick }: EmptyStateProps) {
             <img
               src="/logo.png"
               alt="Sova AI"
-              className="h-full w-full object-contain object-center p-1"
+              className="h-full w-full object-cover object-center"
               onError={() => setLogoError(true)}
             />
           )}
