@@ -70,17 +70,6 @@ function normalizeContent(raw: RawMessage): string {
   return '';
 }
 
-function cleanAssistantContent(content: string): string {
-  return content
-    .split(/\r?\n/)
-    .filter(
-      (line) =>
-        !/^\s*User Safety:\s*(?:safe|unsafe|unknown)\s*$/i.test(line),
-    )
-    .join('\n')
-    .trim();
-}
-
 function normalizeMessage(
   raw: RawMessage,
 ): NormalizedMessage {
@@ -94,7 +83,7 @@ function normalizeMessage(
       crypto.randomUUID(),
     ),
     role,
-    content: role === 'assistant' ? cleanAssistantContent(content) : content,
+    content,
     createdAt:
       raw.createdAt ||
       raw.timestamp,
