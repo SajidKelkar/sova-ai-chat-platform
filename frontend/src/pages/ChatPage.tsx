@@ -10,13 +10,13 @@ import { SignupDialog } from '@/components/SignupDialog';
 import { useAuth } from '@/context/AuthContext';
 import {
   getRecentChats,
-  createChat,
   deleteChat as apiDeleteChat,
   type NormalizedChat,
 } from '@/api/chat';
 import {
   getMessages,
   sendMessageToChat,
+  sendMessageNew,
   type NormalizedMessage,
 } from '@/api/message';
 import { logout as apiLogout, deleteAccount as apiDeleteAccount } from '@/api/auth';
@@ -272,28 +272,17 @@ export function ChatPage() {
           setIsSending(false);
         }
       } else {
-        // Create a chat first, then send the message
         setMessages((prev) => [...prev, userMsg]);
         setIsSending(true);
-        let createdChatId: string | null = null;
         try {
-          // Create chat
-          const newChat = await createChat();
-          createdChatId = newChat.id;
+          const response = await sendMessageNew(content);
           if (isRequestViewActive()) {
-            activeChatRef.current = newChat.id;
-            setActiveChatId(newChat.id);
-          }
-          // Send message to the new chat
-          const responseMsgs = await sendMessageToChat(newChat.id, content);
-          if (isRequestViewActive()) {
-            setMessages((prev) => [...prev, ...responseMsgs]);
+            activeChatRef.current = response.chatId;
+            setActiveChatId(response.chatId);
+            setMessages(response.messages);
           }
           loadChats(false);
         } catch (err) {
-          if (createdChatId) {
-            loadChats(false);
-          }
           if (isAuthError(err)) {
             handleAuthError(err);
             return;
@@ -306,10 +295,6 @@ export function ChatPage() {
             );
             setMessages((prev) => prev.filter((message) => message.id !== userMsg.id));
             setComposerSeed(content);
-            if (!createdChatId) {
-              activeChatRef.current = null;
-              setActiveChatId(null);
-            }
           }
         } finally {
           setIsSending(false);

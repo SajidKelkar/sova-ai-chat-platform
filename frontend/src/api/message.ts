@@ -248,67 +248,38 @@ export function sendMessageNew(
       const obj =
         data as Record<string, unknown>;
 
-      let chatId = '';
-
-      if (obj.chatId) {
-        chatId = String(obj.chatId);
-      } else if (obj.chat) {
-        const chat =
-          obj.chat as Record<
-            string,
-            unknown
-          >;
-
-        chatId = String(
-          chat.chatId ||
-          chat._id ||
-          chat.id ||
-          '',
-        );
+      const chatId = String(obj.chatId || '');
+      if (!chatId) {
+        throw new Error('The server did not create a conversation.');
       }
 
-      const messages: NormalizedMessage[] = [];
-
-      if (
-        obj.userMessage &&
-        typeof obj.userMessage === 'object'
-      ) {
-        messages.push(
-          normalizeMessage(
-            obj.userMessage as RawMessage,
-          ),
-        );
-      }
-
-      if (
-        obj.assistantMessage &&
-        typeof obj.assistantMessage === 'object'
-      ) {
-        messages.push(normalizeAssistantMessage(obj.assistantMessage as RawMessage));
-      }
-
-      if (
-        messages.length === 0 &&
-        obj.reply
-      ) {
-        messages.push(
-          normalizeAssistantMessage({
+      const userMessage = obj.userMessage && typeof obj.userMessage === 'object'
+        ? normalizeMessage(obj.userMessage as RawMessage)
+        : {
             id: crypto.randomUUID(),
-            role: 'assistant',
-            content: String(obj.reply),
-          }),
-        );
+            role: 'user' as const,
+            content,
+          };
+      const assistantMessage = obj.assistantMessage && typeof obj.assistantMessage === 'object'
+        ? normalizeAssistantMessage(obj.assistantMessage as RawMessage)
+        : obj.reply
+          ? normalizeAssistantMessage({
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              content: String(obj.reply),
+            })
+          : null;
+
+      if (!assistantMessage) {
+        throw new Error('The server returned no assistant reply.');
       }
 
       return {
         chatId,
-        messages,
+        messages: [userMessage, assistantMessage],
       };
     }
 
-    return {
-      chatId: '',
-      messages: [],
-    };
+    throw new Error('The server returned an invalid conversation response.');
   });
 }

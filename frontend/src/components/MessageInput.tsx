@@ -70,6 +70,7 @@ export function MessageInput({
             }}
             onKeyDown={handleKeyDown}
             disabled={isSending}
+            maxLength={20000}
             rows={1}
             placeholder="Message Sova"
             className="max-h-[200px] min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-[15px] leading-6 text-gray-900 outline-none placeholder:text-gray-400 disabled:opacity-70 dark:text-gray-100 dark:placeholder:text-gray-500"
