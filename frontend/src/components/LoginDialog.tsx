@@ -3,6 +3,7 @@ import { Mail, Lock, ArrowRight, AlertCircle, X } from 'lucide-react';
 import { login } from '@/api/auth';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/api/client';
+import { BrandMark } from './BrandMark';
 
 interface LoginDialogProps {
   onClose: () => void;
@@ -25,8 +26,12 @@ export function LoginDialog({ onClose, onNavigate }: LoginDialogProps) {
     setError(null);
     setLoading(true);
     try {
-      await login(email, password);
-      await checkAuth();
+      await login(email.trim(), password);
+      const authenticated = await checkAuth();
+      if (!authenticated) {
+        setError('Unable to verify your account. Please try again.');
+        return;
+      }
       onClose();
     } catch (err) {
       if (err instanceof ApiError) {
@@ -41,30 +46,28 @@ export function LoginDialog({ onClose, onNavigate }: LoginDialogProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="login-title"
     >
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-[400px] animate-scale-in rounded-2xl border border-gray-200 bg-white p-7 shadow-2xl dark:border-gray-800 dark:bg-[#2f2f2f]">
+      <div className="absolute inset-0 bg-gray-950/45 backdrop-blur-[3px]" onClick={onClose} />
+      <div className="relative w-full max-w-[420px] rounded-[26px] border border-gray-200/80 bg-white p-7 shadow-[0_28px_90px_rgba(15,23,42,0.2)] dark:border-white/[0.1] dark:bg-[#25272b] sm:p-8">
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
+          className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-xl text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/[0.08] dark:hover:text-gray-200"
           aria-label="Close"
         >
           <X className="h-[18px] w-[18px]" />
         </button>
 
         <div className="mb-6 flex flex-col items-center">
-          <div className="mb-3.5 flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-lg shadow-primary-500/15 ring-1 ring-gray-100 dark:bg-gray-100 dark:ring-white/10">
-            <img src="/logo.png" alt="Sova AI" className="h-full w-full object-cover object-center" />
-          </div>
-          <h2 id="login-title" className="text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-50">
+          <BrandMark className="mb-4 h-12 w-12 rounded-[15px] shadow-[0_8px_22px_rgba(15,23,42,0.12)] ring-1 ring-black/5 dark:ring-white/10" />
+          <h2 id="login-title" className="text-[22px] font-semibold tracking-tight text-gray-900 dark:text-gray-50">
             Welcome back
           </h2>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Sign in to continue building with Sova
+            Sign in to continue your conversations
           </p>
         </div>
 

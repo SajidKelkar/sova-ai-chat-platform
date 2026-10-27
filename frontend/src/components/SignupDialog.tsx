@@ -3,6 +3,7 @@ import { Mail, Lock, User, Calendar, ArrowRight, AlertCircle, X } from 'lucide-r
 import { signup, login } from '@/api/auth';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/api/client';
+import { BrandMark } from './BrandMark';
 
 interface SignupDialogProps {
   onClose: () => void;
@@ -20,12 +21,18 @@ export function SignupDialog({ onClose, onNavigate }: SignupDialogProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email || !password || !age) {
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+    if (!trimmedName || !trimmedEmail || !password || !age) {
       setError('Please fill in all fields.');
       return;
     }
-    const ageNum = parseInt(age);
-    if (isNaN(ageNum) || ageNum < 10 || ageNum > 100) {
+    if (trimmedName.length < 3 || trimmedName.length > 30) {
+      setError('Name must be between 3 and 30 characters.');
+      return;
+    }
+    const ageNum = Number(age);
+    if (!Number.isInteger(ageNum) || ageNum < 10 || ageNum > 100) {
       setError('Age must be between 10 and 100.');
       return;
     }
@@ -33,17 +40,30 @@ export function SignupDialog({ onClose, onNavigate }: SignupDialogProps) {
       setError('Password must be between 8 to 30 characters.');
       return;
     }
+    if (
+      !/[A-Z]/.test(password) ||
+      !/[a-z]/.test(password) ||
+      !/[0-9]/.test(password) ||
+      !/[^A-Za-z0-9]/.test(password)
+    ) {
+      setError('Password must include uppercase, lowercase, number, and special characters.');
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
-      await signup({ name, age: ageNum, email, password });
+      await signup({ name: trimmedName, age: ageNum, email: trimmedEmail, password });
       try {
-        await login(email, password);
+        await login(trimmedEmail, password);
       } catch {
-        onNavigate('login');
+        setError('Your account was created, but automatic sign-in failed. Please sign in manually.');
         return;
       }
-      await checkAuth();
+      const authenticated = await checkAuth();
+      if (!authenticated) {
+        setError("Your account was created, but we couldn't verify the sign-in. Please try signing in again.");
+        return;
+      }
       onClose();
     } catch (err) {
       if (err instanceof ApiError) {
@@ -58,26 +78,24 @@ export function SignupDialog({ onClose, onNavigate }: SignupDialogProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="signup-title"
     >
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-[400px] animate-scale-in rounded-2xl border border-gray-200 bg-white p-7 shadow-2xl dark:border-gray-800 dark:bg-[#2f2f2f]">
+      <div className="absolute inset-0 bg-gray-950/45 backdrop-blur-[3px]" onClick={onClose} />
+      <div className="relative max-h-[calc(100dvh-2rem)] w-full max-w-[420px] overflow-y-auto rounded-[26px] border border-gray-200/80 bg-white p-7 shadow-[0_28px_90px_rgba(15,23,42,0.2)] dark:border-white/[0.1] dark:bg-[#25272b] sm:p-8">
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
+          className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-xl text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/[0.08] dark:hover:text-gray-200"
           aria-label="Close"
         >
           <X className="h-[18px] w-[18px]" />
         </button>
 
         <div className="mb-6 flex flex-col items-center">
-          <div className="mb-3.5 flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-lg shadow-primary-500/15 ring-1 ring-gray-100 dark:bg-gray-100 dark:ring-white/10">
-            <img src="/logo.png" alt="Sova AI" className="h-full w-full object-cover object-center" />
-          </div>
-          <h2 id="signup-title" className="text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-50">
+          <BrandMark className="mb-4 h-12 w-12 rounded-[15px] shadow-[0_8px_22px_rgba(15,23,42,0.12)] ring-1 ring-black/5 dark:ring-white/10" />
+          <h2 id="signup-title" className="text-[22px] font-semibold tracking-tight text-gray-900 dark:text-gray-50">
             Create your account
           </h2>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -97,6 +115,7 @@ export function SignupDialog({ onClose, onNavigate }: SignupDialogProps) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your name"
+                maxLength={30}
                 className="input-field pl-10"
                 autoComplete="name"
                 disabled={loading}
@@ -118,6 +137,7 @@ export function SignupDialog({ onClose, onNavigate }: SignupDialogProps) {
                 className="input-field pl-10"
                 min="10"
                 max="100"
+                step="1"
                 disabled={loading}
               />
             </div>

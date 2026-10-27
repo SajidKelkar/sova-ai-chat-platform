@@ -1,4 +1,10 @@
-import { useState } from 'react';
+import {
+  Children,
+  isValidElement,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react';
 import { Check, Copy } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -10,9 +16,31 @@ interface MarkdownRendererProps {
 interface CodeBlockProps {
   code: string;
   language?: string;
+  children: ReactNode;
 }
 
-function CodeBlock({ code, language }: CodeBlockProps) {
+interface CodeElementProps {
+  className?: string;
+  children?: ReactNode;
+}
+
+function getTextContent(node: ReactNode): string {
+  if (typeof node === 'string' || typeof node === 'number') {
+    return String(node);
+  }
+
+  if (Array.isArray(node)) {
+    return node.map(getTextContent).join('');
+  }
+
+  if (isValidElement<{ children?: ReactNode }>(node)) {
+    return getTextContent(node.props.children);
+  }
+
+  return '';
+}
+
+function CodeBlock({ code, language, children }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -56,8 +84,8 @@ function CodeBlock({ code, language }: CodeBlockProps) {
       </div>
 
       <pre className="m-0 overflow-x-auto p-4">
-        <code className="font-mono text-sm leading-relaxed text-gray-100">
-          {code}
+        <code className="hljs font-mono text-sm leading-relaxed text-gray-100">
+          {children}
         </code>
       </pre>
     </div>
@@ -67,29 +95,35 @@ function CodeBlock({ code, language }: CodeBlockProps) {
 export function MarkdownRenderer({
   content,
 }: MarkdownRendererProps) {
+  const [highlightPlugin, setHighlightPlugin] = useState<
+    typeof import('rehype-highlight').default | null
+  >(null);
+
+  useEffect(() => {
+    if (!content.includes('```') || highlightPlugin) return;
+
+    let isCurrent = true;
+    import('rehype-highlight').then(({ default: plugin }) => {
+      if (isCurrent) {
+        setHighlightPlugin(() => plugin);
+      }
+    });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [content, highlightPlugin]);
+
   return (
     <div className="markdown-body text-sm leading-relaxed">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        rehypePlugins={highlightPlugin ? [highlightPlugin] : []}
         components={{
           code({ className, children, ...props }) {
-            const languageMatch =
-              /language-(\w+)/.exec(className || '');
-
-            const code = String(children).replace(/\n$/, '');
-
-            if (languageMatch) {
-              return (
-                <CodeBlock
-                  code={code}
-                  language={languageMatch[1]}
-                />
-              );
-            }
-
             return (
               <code
-                className="rounded bg-gray-200 px-1.5 py-0.5 font-mono text-sm text-gray-900 dark:bg-gray-700 dark:text-gray-100"
+                className={`${className || ''} rounded bg-gray-200 px-1.5 py-0.5 font-mono text-sm text-gray-900 dark:bg-gray-700 dark:text-gray-100`}
                 {...props}
               >
                 {children}
@@ -98,7 +132,26 @@ export function MarkdownRenderer({
           },
 
           pre({ children }) {
-            return <>{children}</>;
+            const codeNode = Children.toArray(children).find((node) =>
+              isValidElement<CodeElementProps>(node),
+            );
+            if (!isValidElement<CodeElementProps>(codeNode)) {
+              return <pre>{children}</pre>;
+            }
+
+            const language = /language-(\w+)/.exec(
+              codeNode.props.className || '',
+            )?.[1];
+            const code = getTextContent(codeNode.props.children).replace(
+              /\n$/,
+              '',
+            );
+
+            return (
+              <CodeBlock code={code} language={language}>
+                {codeNode.props.children}
+              </CodeBlock>
+            );
           },
 
           p({ children }) {

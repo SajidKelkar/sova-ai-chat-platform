@@ -14,6 +14,7 @@ import {
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import type { NormalizedChat } from '@/api/chat';
+import { BrandMark } from './BrandMark';
 
 interface SidebarProps {
   chats: NormalizedChat[];
@@ -47,42 +48,32 @@ export function Sidebar({
   const { theme, toggleTheme } = useTheme();
   const { user, isAuthenticated } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [logoError, setLogoError] = useState(false);
 
   return (
     <>
       {isMobileOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-30 bg-gray-950/35 backdrop-blur-[2px] lg:hidden"
           onClick={onCloseMobile}
         />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[280px] flex-col border-r border-gray-200/80 bg-[#f8f9fc] shadow-[4px_0_24px_rgba(15,23,42,0.03)] transition-transform duration-300 dark:border-white/[0.06] dark:bg-[#0d111c] dark:shadow-none lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-[288px] flex-col border-r border-gray-200/70 bg-[#f4f4f4] shadow-[12px_0_40px_rgba(0,0,0,0.07)] transition-transform duration-200 ease-out dark:border-white/[0.07] dark:bg-[#18191c] dark:shadow-none lg:static lg:my-2 lg:ml-2 lg:rounded-[20px] lg:border lg:border-gray-200/80 lg:shadow-[0_8px_26px_rgba(0,0,0,0.045)] lg:dark:border-white/[0.07] lg:dark:shadow-[0_8px_26px_rgba(0,0,0,0.12)] lg:translate-x-0 ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Header */}
-        <div className="flex h-[64px] items-center justify-between border-b border-gray-200/70 px-4 dark:border-white/[0.06]">
+        <div className="flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-2.5">
-            <div className="relative h-9 w-9 overflow-hidden rounded-xl bg-white shadow-[0_4px_14px_rgba(0,0,0,0.08)] ring-1 ring-gray-200/70 dark:bg-white/10 dark:ring-white/10">
-              {!logoError && (
-                <img
-                  src="/logo.png"
-                  alt="Sova AI"
-                  className="h-full w-full object-cover object-center"
-                  onError={() => setLogoError(true)}
-                />
-              )}
-            </div>
+            <BrandMark className="h-9 w-9 rounded-xl ring-1 ring-black/[0.06] dark:ring-white/10" />
 
             <div>
-              <p className="text-[15px] font-semibold tracking-[-0.01em] text-gray-900 dark:text-white">
+              <p className="text-sm font-semibold tracking-[-0.02em] text-gray-900 dark:text-white">
                 Sova AI
               </p>
-              <p className="text-[10px] font-medium tracking-wide text-gray-400 dark:text-gray-500">
-                AI ASSISTANT
+              <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+                Your thinking partner
               </p>
             </div>
           </div>
@@ -90,7 +81,7 @@ export function Sidebar({
           <div className="flex items-center gap-1">
             <button
               onClick={toggleTheme}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-all duration-200 hover:bg-gray-200/70 hover:text-gray-800 active:scale-95 dark:text-gray-400 dark:hover:bg-white/[0.07] dark:hover:text-gray-200"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors duration-150 hover:bg-black/[0.04] hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/[0.07] dark:hover:text-gray-100"
               aria-label="Toggle theme"
             >
               {theme === 'dark' ? (
@@ -102,7 +93,7 @@ export function Sidebar({
 
             <button
               onClick={onCloseMobile}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-all hover:bg-gray-200/70 hover:text-gray-800 active:scale-95 dark:text-gray-400 dark:hover:bg-white/[0.07] dark:hover:text-gray-200 lg:hidden"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors duration-150 hover:bg-black/[0.04] hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/[0.07] dark:hover:text-gray-100 lg:hidden"
               aria-label="Close sidebar"
             >
               <X className="h-5 w-5" />
@@ -111,12 +102,12 @@ export function Sidebar({
         </div>
 
         {/* New Chat */}
-        <div className="px-3 pt-4">
+        <div className="px-3 pt-1">
           <button
             onClick={onNewChat}
-            className="group flex w-full items-center gap-2.5 rounded-2xl border border-gray-200/70 bg-white px-4 py-3 text-sm font-semibold text-gray-800 shadow-[0_3px_12px_rgba(15,23,42,0.05)] transition-all duration-200 hover:-translate-y-[1px] hover:border-primary-200 hover:shadow-[0_8px_22px_rgba(37,99,235,0.10)] active:translate-y-0 active:scale-[0.99] dark:border-white/[0.08] dark:bg-white/[0.045] dark:text-gray-100 dark:shadow-none dark:hover:border-primary-500/30 dark:hover:bg-white/[0.07]"
+            className="group flex h-11 w-full items-center gap-2.5 rounded-xl border border-gray-200/80 bg-white/70 px-3 text-[13px] font-semibold text-gray-700 transition-colors duration-150 hover:border-gray-300 hover:bg-white hover:text-gray-900 dark:border-white/[0.1] dark:bg-white/[0.045] dark:text-gray-200 dark:hover:border-white/[0.16] dark:hover:bg-white/[0.08] dark:hover:text-white"
           >
-            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary-50 text-primary-600 transition-transform duration-200 group-hover:scale-105 dark:bg-primary-500/10 dark:text-primary-300">
+            <div className="flex h-5 w-5 items-center justify-center text-gray-500 dark:text-gray-400">
               <PenSquare className="h-[15px] w-[15px]" />
             </div>
 
@@ -125,10 +116,10 @@ export function Sidebar({
         </div>
 
         {/* Recent Chats */}
-        <div className="flex-1 overflow-y-auto px-3 pb-4 pt-5">
-          <div className="mb-2.5 px-2">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-400 dark:text-gray-500">
-              Recent
+        <div className="flex-1 overflow-y-auto px-3 pb-4 pt-6">
+          <div className="mb-2 px-3">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-500">
+              Recent conversations
             </span>
           </div>
 
@@ -137,19 +128,19 @@ export function Sidebar({
               [1, 2, 3].map((item) => (
                 <div
                   key={item}
-                  className="h-10 animate-pulse rounded-xl bg-gray-200/60 dark:bg-white/[0.045]"
+                  className="h-9 rounded-xl bg-gray-200/60 dark:bg-white/[0.045]"
                 />
               ))}
 
             {!isAuthenticated && !loadingChats && (
-              <div className="rounded-xl border border-dashed border-gray-300/80 bg-white/40 px-3 py-4 text-xs leading-relaxed text-gray-400 dark:border-white/[0.09] dark:bg-white/[0.02] dark:text-gray-500">
-                Sign in to save and view your conversations.
+              <div className="px-3 py-3 text-xs leading-relaxed text-gray-500 dark:text-gray-500">
+                Sign in to keep your conversations here.
               </div>
             )}
 
             {isAuthenticated && !loadingChats && chats.length === 0 && (
-              <div className="rounded-xl border border-dashed border-gray-300/80 bg-white/40 px-3 py-4 text-xs leading-relaxed text-gray-400 dark:border-white/[0.09] dark:bg-white/[0.02] dark:text-gray-500">
-                No conversations yet. Start a new chat to begin.
+              <div className="px-3 py-3 text-xs leading-relaxed text-gray-500 dark:text-gray-500">
+                Your conversations will appear here.
               </div>
             )}
 
@@ -157,35 +148,26 @@ export function Sidebar({
               chats.map((chat) => (
                 <div
                   key={chat.id}
-                  className={`group flex cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm transition-all duration-200 ${
+                  className={`group flex items-center gap-1 rounded-xl text-[13px] transition-colors duration-150 ${
                     activeChatId === chat.id
-                      ? 'border-primary-200/60 bg-primary-50 font-medium text-primary-700 shadow-sm dark:border-primary-500/15 dark:bg-primary-500/[0.09] dark:text-primary-300'
-                      : 'border-transparent text-gray-600 hover:border-gray-200/60 hover:bg-white hover:shadow-sm dark:text-gray-400 dark:hover:border-white/[0.05] dark:hover:bg-white/[0.045]'
+                      ? 'bg-black/[0.045] text-gray-900 dark:bg-white/[0.075] dark:text-gray-100'
+                      : 'text-gray-600 hover:bg-black/[0.035] hover:text-gray-900 dark:text-gray-300 dark:hover:bg-white/[0.045] dark:hover:text-white'
                   }`}
-                  onClick={() => onSelectChat(chat.id)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') onSelectChat(chat.id);
-                  }}
                 >
-                  <MessageSquare
-                    className={`h-4 w-4 flex-shrink-0 transition-colors ${
-                      activeChatId === chat.id
-                        ? 'text-primary-500'
-                        : 'opacity-50'
-                    }`}
-                  />
-
-                  <span className="flex-1 truncate">{chat.title}</span>
-
                   <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onDeleteChat(chat.id);
-                    }}
-                    className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-gray-400 opacity-0 transition-all hover:bg-red-50 hover:text-red-500 group-hover:opacity-100 dark:hover:bg-red-500/10 dark:hover:text-red-400"
-                    aria-label="Delete chat"
+                    type="button"
+                    onClick={() => onSelectChat(chat.id)}
+                    className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2 text-left"
+                    aria-current={activeChatId === chat.id ? 'page' : undefined}
+                  >
+                    <MessageSquare className="h-4 w-4 flex-shrink-0 opacity-60" />
+                    <span className="truncate">{chat.title}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteChat(chat.id)}
+                    className="mr-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-gray-400 opacity-100 transition-colors hover:bg-red-50 hover:text-red-500 focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+                    aria-label={`Delete ${chat.title}`}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -195,19 +177,19 @@ export function Sidebar({
         </div>
 
         {/* Account */}
-        <div className="border-t border-gray-200/70 bg-white/30 p-3 dark:border-white/[0.06] dark:bg-transparent">
+        <div className="border-t border-gray-200/70 p-2.5 dark:border-white/[0.07]">
           {isAuthenticated ? (
             <div className="relative">
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
-                className="flex w-full items-center gap-2.5 rounded-xl border border-transparent p-2 transition-all duration-200 hover:border-gray-200/60 hover:bg-white hover:shadow-sm dark:hover:border-white/[0.05] dark:hover:bg-white/[0.045]"
+                className="flex w-full items-center gap-2.5 rounded-xl border border-transparent p-2 transition-colors duration-150 hover:border-gray-200/70 hover:bg-white/70 dark:hover:border-white/[0.07] dark:hover:bg-white/[0.045]"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-accent-500 text-white shadow-sm">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-200/80 text-gray-600 ring-1 ring-gray-300/60 dark:bg-gray-700/80 dark:text-gray-100 dark:ring-white/10">
                   <UserIcon className="h-4 w-4" />
                 </div>
 
                 <div className="flex-1 overflow-hidden text-left">
-                  <p className="truncate text-sm font-medium text-gray-800 dark:text-gray-200">
+                  <p className="truncate text-[13px] font-semibold text-gray-800 dark:text-gray-200">
                     {user?.name || user?.email || 'User'}
                   </p>
                   <p className="truncate text-[11px] text-gray-400 dark:text-gray-500">
@@ -223,13 +205,13 @@ export function Sidebar({
               </button>
 
               {menuOpen && (
-                <div className="absolute bottom-[calc(100%+8px)] left-0 right-0 z-50 overflow-hidden rounded-2xl border border-gray-200/80 bg-white p-1.5 shadow-[0_16px_40px_rgba(15,23,42,0.14)] dark:border-white/[0.08] dark:bg-[#171c2b] dark:shadow-[0_16px_40px_rgba(0,0,0,0.35)]">
+                <div className="absolute bottom-[calc(100%+8px)] left-0 right-0 z-50 overflow-hidden rounded-xl border border-gray-200/80 bg-white p-1 shadow-[0_12px_30px_rgba(0,0,0,0.12)] dark:border-white/[0.08] dark:bg-[#282a2e] dark:shadow-[0_12px_30px_rgba(0,0,0,0.3)]">
                   <button
                     onClick={() => {
                       setMenuOpen(false);
                       onLogout();
                     }}
-                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/[0.06]"
+                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/[0.06]"
                   >
                     <LogOut className="h-4 w-4 text-gray-400" />
                     Log out
@@ -242,7 +224,7 @@ export function Sidebar({
                       setMenuOpen(false);
                       onDeleteAccount();
                     }}
-                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-error-600 transition-colors hover:bg-red-50 dark:text-error-400 dark:hover:bg-red-500/[0.08]"
+                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] text-error-600 transition-colors hover:bg-red-50 dark:text-error-400 dark:hover:bg-red-500/[0.08]"
                   >
                     <Trash2 className="h-4 w-4" />
                     Delete account
@@ -254,7 +236,7 @@ export function Sidebar({
             <div className="space-y-1.5">
               <button
                 onClick={onLogin}
-                className="flex w-full items-center gap-2.5 rounded-xl bg-primary-600 px-3 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary-600/20 transition-all duration-200 hover:bg-primary-700 hover:shadow-md hover:shadow-primary-600/20 active:scale-[0.98]"
+                className="flex w-full items-center gap-2.5 rounded-xl border border-gray-200/80 bg-white/70 px-3 py-2.5 text-[13px] font-semibold text-gray-700 transition-colors duration-150 hover:border-gray-300 hover:bg-white dark:border-white/[0.1] dark:bg-white/[0.045] dark:text-gray-200 dark:hover:bg-white/[0.08]"
               >
                 <LogIn className="h-4 w-4" />
                 Log in
@@ -262,7 +244,7 @@ export function Sidebar({
 
               <button
                 onClick={onSignup}
-                className="flex w-full items-center justify-center rounded-xl px-3 py-2.5 text-sm font-medium text-gray-600 transition-all hover:bg-gray-200/60 dark:text-gray-400 dark:hover:bg-white/[0.05]"
+                className="flex w-full items-center justify-center rounded-lg px-3 py-2 text-[13px] font-medium text-gray-600 transition-colors duration-150 hover:bg-black/[0.035] dark:text-gray-400 dark:hover:bg-white/[0.05]"
               >
                 Create account
               </button>

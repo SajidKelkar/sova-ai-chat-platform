@@ -2,18 +2,13 @@ import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { ChatPage } from '@/pages/ChatPage';
-import { FullPageLoader } from '@/components/LoadingIndicator';
 
 function AppContent() {
-  const { status, checkAuth } = useAuth();
+  const { checkAuth } = useAuth();
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
-
-  if (status === 'loading') {
-    return <FullPageLoader label="Loading…" />;
-  }
 
   return <ChatPage />;
 }

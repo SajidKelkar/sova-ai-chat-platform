@@ -1,11 +1,10 @@
 import Chat from "../models/chat.model.js";
 import Message from "../models/message.model.js";
+import User from "../models/user.model.js";
 import mongoose from "mongoose";
 import { generateAiResponse } from "../service/openRouterService.js";
 import { updateSummaryIfNeeded } from "../service/summaryService.js";
 import { buildMessagesForAI } from "../utils/chatContext.js";
-import { addChatTokenUsage } from "../utils/tokenUsage.js";
-import { addUserTokenUsage } from "../utils/userUsage.js";
 import { redisClient } from "../config/redis.js";
 
 export const getMessage = async (req,res) =>{
@@ -128,39 +127,89 @@ export const sendMessage = async (req,res) =>{
             messages: messagesForAI,
         });
         
-        const userMessage = await Message.create({
-            userId: req.user._id,
-            chatId: chat._id,
-            role: "user",
-            content: content.trim()
-        })
+        const session = await mongoose.startSession();
+        let committedResult;
+        try {
+            committedResult = await session.withTransaction(async () => {
+                const [userMessage, assistantMessage] = await Message.create([
+                    {
+                        userId: req.user._id,
+                        chatId: chat._id,
+                        role: "user",
+                        content: content.trim()
+                    },
+                    {
+                        userId: req.user._id,
+                        chatId: chat._id,
+                        role: "assistant",
+                        content: aiReply
+                    }
+                ], { session });
 
-        const assistantMessage = await Message.create({
-            userId: req.user._id,
-            chatId: chat._id,
-            role: "assistant",
-            content: aiReply
-        })
+                const chatUpdate = {
+                    $inc: {
+                        messageCount: 2,
+                        "usage.promptTokens": usage.promptTokens,
+                        "usage.completionTokens": usage.completionTokens,
+                        "usage.totalTokens": usage.totalTokens
+                    }
+                };
+                if (chat.topic === "New Chat") {
+                    chatUpdate.$set = { topic: content.trim().slice(0, 30) };
+                }
 
-        chat.messageCount += 2;
-        if(chat.topic === "New Chat"){
-            chat.topic = content.trim().slice(0, 30)
+                const chatResult = await Chat.updateOne(
+                    { _id: chat._id, userId: req.user._id },
+                    chatUpdate,
+                    { session }
+                );
+                if (chatResult.matchedCount !== 1) {
+                    throw new Error("Chat no longer exists");
+                }
+
+                const updatedUser = await User.findByIdAndUpdate(
+                    req.user._id,
+                    {
+                        $inc: {
+                            "usage.tokenUsed": usage.totalTokens,
+                            "usage.totalTokenUsed": usage.totalTokens
+                        }
+                    },
+                    { new: true, session }
+                );
+                if (!updatedUser) {
+                    throw new Error("User no longer exists");
+                }
+
+                return {
+                    userMessage,
+                    assistantMessage,
+                    tokenUsed: updatedUser.usage.tokenUsed
+                };
+            });
+        } finally {
+            try {
+                await session.endSession();
+            } catch (error) {
+                console.error("MongoDB session cleanup failed:", error);
+            }
         }
-        await chat.save();
 
-        await addChatTokenUsage(chat, usage);
-        await addUserTokenUsage(req.user, usage.totalTokens);
-
-        const tokenUsed = await redisClient.incrBy(
-            req.tokenUsageKey,
-            usage.totalTokens
-        );
-
-        if (tokenUsed === usage.totalTokens) {
-            await redisClient.expire(
-            req.tokenUsageKey,
-            Number(process.env.TOKEN_WINDOW_SECONDS)
+        let tokenUsed = committedResult.tokenUsed;
+        try {
+            tokenUsed = await redisClient.incrBy(
+                req.tokenUsageKey,
+                usage.totalTokens
             );
+
+            if (tokenUsed === usage.totalTokens) {
+                await redisClient.expire(
+                    req.tokenUsageKey,
+                    Number(process.env.TOKEN_WINDOW_SECONDS)
+                );
+            }
+        } catch (error) {
+            console.error("Redis token usage update failed after message commit:", error);
         }
 
         res.status(201).json({
@@ -170,8 +219,8 @@ export const sendMessage = async (req,res) =>{
             usage,
             tokenUsed,
             tokenLimit: Number(process.env.TOKEN_LIMIT),
-            userMessage,
-            assistantMessage
+            userMessage: committedResult.userMessage,
+            assistantMessage: committedResult.assistantMessage
         })
 
         updateSummaryIfNeeded(chat._id).catch((error) => {

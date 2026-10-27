@@ -5,7 +5,6 @@ import { MessageList } from '@/components/MessageList';
 import { MessageInput } from '@/components/MessageInput';
 import { EmptyState } from '@/components/EmptyState';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { FullPageLoader } from '@/components/LoadingIndicator';
 import { LoginDialog } from '@/components/LoginDialog';
 import { SignupDialog } from '@/components/SignupDialog';
 import { useAuth } from '@/context/AuthContext';
@@ -21,12 +20,12 @@ import {
   type NormalizedMessage,
 } from '@/api/message';
 import { logout as apiLogout, deleteAccount as apiDeleteAccount } from '@/api/auth';
-import { ApiError, isAuthError } from '@/api/client';
+import { isAuthError } from '@/api/client';
 
 type AuthModal = 'login' | 'signup' | null;
 
 export function ChatPage() {
-  const { status, isAuthenticated, logoutFrontend } = useAuth();
+  const { status, isAuthenticated, logoutFrontend, authError } = useAuth();
 
   const [chats, setChats] = useState<NormalizedChat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -49,6 +48,8 @@ export function ChatPage() {
 
   const activeChatRef = useRef<string | null>(null);
   activeChatRef.current = activeChatId;
+  const activeViewRevision = useRef(0);
+  const messageLoadRevision = useRef(0);
   const wasAuthenticated = useRef(isAuthenticated);
 
   const handleAuthError = useCallback(
@@ -60,36 +61,51 @@ export function ChatPage() {
     [logoutFrontend],
   );
 
-  const loadChats = useCallback(async (showLoading = true) => {
-  if (showLoading) {
-    setLoadingChats(true);
-  }
+  const loadChats = useCallback(
+    async (showLoading = true) => {
+      if (showLoading) {
+        setLoadingChats(true);
+      }
 
-  try {
-    const recent = await getRecentChats();
-    setChats(recent);
-    return recent;
-  } catch (err) {
-    if (!isAuthError(err)) {
-      setError('Unable to load conversations. Please try again.');
-    }
-    handleAuthError(err);
-    return [];
-  } finally {
-    if (showLoading) {
-      setLoadingChats(false);
-    }
-  }
-}, [handleAuthError]);
+      try {
+        const recent = await getRecentChats();
+        setChats(recent);
+        return recent;
+      } catch (err) {
+        if (!isAuthError(err)) {
+          setError('Unable to load conversations. Please try again.');
+        }
+        handleAuthError(err);
+        return [];
+      } finally {
+        if (showLoading) {
+          setLoadingChats(false);
+        }
+      }
+    },
+    [handleAuthError],
+  );
 
   const loadMessages = useCallback(
     async (chatId: string) => {
+      const requestRevision = ++messageLoadRevision.current;
       setLoadingMessages(true);
       setError(null);
       try {
         const msgs = await getMessages(chatId);
-        setMessages(msgs);
+        if (
+          requestRevision === messageLoadRevision.current &&
+          activeChatRef.current === chatId
+        ) {
+          setMessages(msgs);
+        }
       } catch (err) {
+        if (
+          requestRevision !== messageLoadRevision.current ||
+          activeChatRef.current !== chatId
+        ) {
+          return;
+        }
         if (isAuthError(err)) {
           handleAuthError(err);
           return;
@@ -97,7 +113,9 @@ export function ChatPage() {
         setError('Unable to load messages. Please try again.');
         setMessages([]);
       } finally {
-        setLoadingMessages(false);
+        if (requestRevision === messageLoadRevision.current) {
+          setLoadingMessages(false);
+        }
       }
     },
     [handleAuthError],
@@ -113,9 +131,13 @@ export function ChatPage() {
   // When user logs out, clear private state
   useEffect(() => {
     if (wasAuthenticated.current && !isAuthenticated) {
+      activeViewRevision.current += 1;
+      messageLoadRevision.current += 1;
+      activeChatRef.current = null;
       setChats([]);
       setMessages([]);
       setActiveChatId(null);
+      setLoadingMessages(false);
       setError(null);
     }
     wasAuthenticated.current = isAuthenticated;
@@ -142,8 +164,11 @@ export function ChatPage() {
         setSidebarOpen(false);
         return;
       }
+      activeViewRevision.current += 1;
+      activeChatRef.current = chatId;
       setActiveChatId(chatId);
       setMessages([]);
+      setError(null);
       setSidebarOpen(false);
       loadMessages(chatId);
     },
@@ -156,8 +181,12 @@ export function ChatPage() {
       return;
     }
     setSidebarOpen(false);
+    activeViewRevision.current += 1;
+    messageLoadRevision.current += 1;
+    activeChatRef.current = null;
     setActiveChatId(null);
     setMessages([]);
+    setLoadingMessages(false);
     setError(null);
     setComposerSeed(undefined);
   }, [isAuthenticated]);
@@ -173,8 +202,12 @@ export function ChatPage() {
       await apiDeleteChat(deleteChatId);
       setChats((prev) => prev.filter((c) => c.id !== deleteChatId));
       if (activeChatId === deleteChatId) {
+        activeViewRevision.current += 1;
+        messageLoadRevision.current += 1;
+        activeChatRef.current = null;
         setActiveChatId(null);
         setMessages([]);
+        setLoadingMessages(false);
       }
       setDeleteChatId(null);
     } catch (err) {
@@ -207,13 +240,18 @@ export function ChatPage() {
         content,
       };
 
-      if (activeChatRef.current) {
+      const requestChatId = activeChatRef.current;
+      const requestViewRevision = activeViewRevision.current;
+      const isRequestViewActive = () =>
+        activeViewRevision.current === requestViewRevision;
+
+      if (requestChatId) {
         setMessages((prev) => [...prev, userMsg]);
         setIsSending(true);
         try {
-          const responseMsgs = await sendMessageToChat(activeChatRef.current!, content);
-          if (responseMsgs.length > 0) {
-            setMessages((prev) => [...prev, ...responseMsgs.filter((m) => m.role !== 'user' || !prev.some((p) => p.content === m.content && p.id === m.id))]);
+          const responseMsgs = await sendMessageToChat(requestChatId, content);
+          if (isRequestViewActive()) {
+            setMessages((prev) => [...prev, ...responseMsgs]);
           }
           loadChats(false);
         } catch (err) {
@@ -221,8 +259,15 @@ export function ChatPage() {
             handleAuthError(err);
             return;
           }
-          const apiErr = err as ApiError;
-          setError(apiErr.message || 'Something went wrong while sending your message.');
+          if (isRequestViewActive()) {
+            setMessages((prev) => prev.filter((message) => message.id !== userMsg.id));
+            setComposerSeed(content);
+            setError(
+              err instanceof Error
+                ? err.message
+                : 'Something went wrong while sending your message.',
+            );
+          }
         } finally {
           setIsSending(false);
         }
@@ -230,24 +275,42 @@ export function ChatPage() {
         // Create a chat first, then send the message
         setMessages((prev) => [...prev, userMsg]);
         setIsSending(true);
+        let createdChatId: string | null = null;
         try {
           // Create chat
           const newChat = await createChat();
-          setActiveChatId(newChat.id);
+          createdChatId = newChat.id;
+          if (isRequestViewActive()) {
+            activeChatRef.current = newChat.id;
+            setActiveChatId(newChat.id);
+          }
           // Send message to the new chat
           const responseMsgs = await sendMessageToChat(newChat.id, content);
-          if (responseMsgs.length > 0) {
-            setMessages((prev) => [...prev, ...responseMsgs.filter((m) => m.role !== 'user' || !prev.some((p) => p.content === m.content && p.id === m.id))]);
+          if (isRequestViewActive()) {
+            setMessages((prev) => [...prev, ...responseMsgs]);
           }
           loadChats(false);
         } catch (err) {
+          if (createdChatId) {
+            loadChats(false);
+          }
           if (isAuthError(err)) {
             handleAuthError(err);
             return;
           }
-          const apiErr = err as ApiError;
-          setError(apiErr.message || 'Something went wrong while sending your message.');
-          setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
+          if (isRequestViewActive()) {
+            setError(
+              err instanceof Error
+                ? err.message
+                : 'Something went wrong while sending your message.',
+            );
+            setMessages((prev) => prev.filter((message) => message.id !== userMsg.id));
+            setComposerSeed(content);
+            if (!createdChatId) {
+              activeChatRef.current = null;
+              setActiveChatId(null);
+            }
+          }
         } finally {
           setIsSending(false);
         }
@@ -287,16 +350,12 @@ export function ChatPage() {
     }
   }, [logoutFrontend, handleAuthError]);
 
-  if (status === 'loading') {
-    return <FullPageLoader label="Checking authentication…" />;
-  }
-
   const activeChat = chats.find((c) => c.id === activeChatId);
   const headerTitle = activeChat?.title || 'New Chat';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white dark:bg-[#101426]">
-      <div className={`${sidebarCollapsed ? 'lg:hidden' : 'lg:flex'}`}>
+    <div className="flex h-[100dvh] overflow-hidden bg-[#ededed] dark:bg-[#141517] lg:gap-2">
+      <div className={`shrink-0 ${sidebarCollapsed ? 'lg:hidden' : 'lg:flex lg:w-[296px] lg:flex-none'}`}>
         <Sidebar
           chats={chats}
           activeChatId={activeChatId}
@@ -313,38 +372,69 @@ export function ChatPage() {
         />
       </div>
 
-      <div className="relative flex flex-1 flex-col overflow-hidden">
-        {/* Sidebar toggle — fixed top-left of chat area */}
-        <div className="absolute left-3 top-3 z-20 flex items-center gap-1">
-          <button onClick={() => setSidebarOpen(true)} className="icon-button bg-white/80 shadow-sm backdrop-blur-sm lg:hidden dark:bg-[#101426]/80" aria-label="Open sidebar"><Menu className="h-5 w-5" /></button>
-          <button onClick={() => setSidebarCollapsed((v) => !v)} className="icon-button hidden bg-white/80 shadow-sm backdrop-blur-sm lg:flex dark:bg-[#101426]/80" aria-label="Toggle sidebar">{sidebarCollapsed ? <PanelLeft className="h-[18px] w-[18px]" /> : <PanelLeftClose className="h-[18px] w-[18px]" />}</button>
-        </div>
-
-        {messages.length === 0 && !loadingMessages && !isSending ? (
-          <EmptyState onExampleClick={handleExampleClick} />
-        ) : (
-          <MessageList
-            messages={messages}
-            isLoadingResponse={isSending}
-            errorMessage={error}
-          />
-        )}
-
-        {loadingMessages && messages.length === 0 && (
-          <div className="flex flex-1 items-center justify-center">
-            <div className="flex flex-col items-center gap-2 text-gray-400">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
-              <span className="text-sm">Loading messages…</span>
-            </div>
+      <div className={`relative flex min-w-0 flex-1 flex-col overflow-hidden bg-[#fafafa] dark:bg-[#191a1d] lg:my-2 lg:mr-2 lg:rounded-[20px] lg:border lg:border-gray-200/80 lg:shadow-[0_8px_30px_rgba(0,0,0,0.055)] dark:lg:border-white/[0.07] dark:lg:shadow-[0_8px_30px_rgba(0,0,0,0.16)] ${sidebarCollapsed ? 'lg:ml-2' : ''}`}>
+        {/* Chat header and sidebar controls */}
+        <header className="chat-header absolute inset-x-0 top-0 z-20 flex h-14 items-center border-b border-gray-200/70 px-3 pl-14 dark:border-white/[0.07] lg:pl-14">
+          <div className="absolute left-3 top-3 flex items-center gap-1">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="icon-button lg:hidden"
+              aria-label="Open sidebar"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => setSidebarCollapsed((value) => !value)}
+              className="icon-button hidden lg:flex"
+              aria-label="Toggle sidebar"
+            >
+              {sidebarCollapsed ? (
+                <PanelLeft className="h-[18px] w-[18px]" />
+              ) : (
+                <PanelLeftClose className="h-[18px] w-[18px]" />
+              )}
+            </button>
           </div>
-        )}
+          <span className="truncate text-sm font-semibold text-gray-700 dark:text-gray-100">
+            {headerTitle}
+          </span>
+        </header>
 
-        <MessageInput
-          onSend={handleSend}
-          disabled={isSending}
-          isSending={isSending}
-          initialValue={composerSeed}
-        />
+        <div className="mt-14 flex min-h-0 w-full min-w-0 flex-1 flex-col">
+          {messages.length === 0 && !loadingMessages && !isSending ? (
+            <EmptyState onExampleClick={handleExampleClick} />
+          ) : (
+            <MessageList
+              messages={messages}
+              isLoadingResponse={isSending}
+              errorMessage={error}
+            />
+          )}
+
+          {loadingMessages && messages.length === 0 && (
+            <div className="flex flex-1 items-center justify-center">
+              <div className="flex flex-col items-center gap-2 text-gray-400">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
+                <span className="text-sm">Loading messages…</span>
+              </div>
+            </div>
+          )}
+
+          {(error || authError) && messages.length === 0 && !loadingMessages && (
+            <div className="mx-auto mb-3 w-full max-w-3xl px-4 sm:px-6" role="alert">
+              <div className="rounded-lg border border-error-200 bg-error-50 px-4 py-3 text-sm text-error-700 dark:border-error-500/30 dark:bg-error-500/10 dark:text-error-400">
+                {error || authError}
+              </div>
+            </div>
+          )}
+
+          <MessageInput
+            onSend={handleSend}
+            disabled={isSending}
+            isSending={isSending}
+            initialValue={composerSeed}
+          />
+        </div>
       </div>
 
       {/* Auth modal */}

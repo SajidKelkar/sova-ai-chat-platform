@@ -70,21 +70,43 @@ function normalizeContent(raw: RawMessage): string {
   return '';
 }
 
+function cleanAssistantContent(content: string): string {
+  return content
+    .split(/\r?\n/)
+    .filter(
+      (line) =>
+        !/^\s*User Safety:\s*(?:safe|unsafe|unknown)\s*$/i.test(line),
+    )
+    .join('\n')
+    .trim();
+}
+
 function normalizeMessage(
   raw: RawMessage,
 ): NormalizedMessage {
+  const role = normalizeRole(raw);
+  const content = normalizeContent(raw);
+
   return {
     id: String(
       raw._id ||
       raw.id ||
       crypto.randomUUID(),
     ),
-    role: normalizeRole(raw),
-    content: normalizeContent(raw),
+    role,
+    content: role === 'assistant' ? cleanAssistantContent(content) : content,
     createdAt:
       raw.createdAt ||
       raw.timestamp,
   };
+}
+
+function normalizeAssistantMessage(raw: RawMessage): NormalizedMessage {
+  const message = normalizeMessage(raw);
+  if (!message.content.trim()) {
+    throw new Error('The assistant returned no usable reply. Please try again.');
+  }
+  return message;
 }
 
 function extractMessageArray(
@@ -133,6 +155,9 @@ export function getMessages(chatId: string) {
   ).then((data) =>
     extractMessageArray(data).map(
       normalizeMessage,
+    ).filter(
+      (message) =>
+        message.role !== 'assistant' || message.content.trim().length > 0,
     ),
   );
 }
@@ -177,17 +202,13 @@ export function sendMessageToChat(
         obj.assistantMessage &&
         typeof obj.assistantMessage === 'object'
       ) {
-        return [
-          normalizeMessage(
-            obj.assistantMessage as RawMessage,
-          ),
-        ];
+        return [normalizeAssistantMessage(obj.assistantMessage as RawMessage)];
       }
 
       // Fallback if backend returns a direct reply
       if (obj.reply) {
         return [
-          normalizeMessage({
+          normalizeAssistantMessage({
             id: crypto.randomUUID(),
             role: 'assistant',
             content: String(obj.reply),
@@ -200,16 +221,19 @@ export function sendMessageToChat(
         extractMessageArray(data);
 
       if (arr.length > 0) {
-        return arr
+        const assistantMessages = arr
           .map(normalizeMessage)
           .filter(
             (message) =>
-              message.role === 'assistant',
+              message.role === 'assistant' && message.content.trim().length > 0,
           );
+        if (assistantMessages.length > 0) {
+          return assistantMessages;
+        }
       }
     }
 
-    return [];
+    throw new Error('The server returned no assistant reply.');
   });
 }
 
@@ -271,11 +295,7 @@ export function sendMessageNew(
         obj.assistantMessage &&
         typeof obj.assistantMessage === 'object'
       ) {
-        messages.push(
-          normalizeMessage(
-            obj.assistantMessage as RawMessage,
-          ),
-        );
+        messages.push(normalizeAssistantMessage(obj.assistantMessage as RawMessage));
       }
 
       if (
@@ -283,7 +303,7 @@ export function sendMessageNew(
         obj.reply
       ) {
         messages.push(
-          normalizeMessage({
+          normalizeAssistantMessage({
             id: crypto.randomUUID(),
             role: 'assistant',
             content: String(obj.reply),

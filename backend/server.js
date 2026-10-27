@@ -4,7 +4,6 @@ import app from "./src/app.js";
 import connectDb from "./src/config/db.js";
 import { connectRedis } from "./src/config/redis.js";
 
-
 const startServer = async ()=>{
     try{
         await connectDb();

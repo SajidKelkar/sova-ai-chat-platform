@@ -1,14 +1,18 @@
 import { Loader2 } from 'lucide-react';
+import { BrandMark } from './BrandMark';
 
 export function LoadingIndicator() {
   return (
     <div
-      className="flex items-center gap-1.5 py-1"
-      aria-label="AI is thinking"
+      className="flex w-fit items-center gap-1.5 rounded-full border border-gray-200/80 bg-white/80 px-3.5 py-3 shadow-[0_2px_8px_rgba(15,23,42,0.04)] dark:border-white/[0.08] dark:bg-white/[0.035] dark:shadow-none"
+      role="status"
+      aria-label="Sova is thinking"
     >
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-400 [animation-delay:-0.3s]" />
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-400 [animation-delay:-0.15s]" />
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-400" />
+      <span className="thinking-dots flex items-center gap-1" aria-hidden="true">
+        <span className="thinking-dot [animation-delay:0ms]" />
+        <span className="thinking-dot [animation-delay:140ms]" />
+        <span className="thinking-dot [animation-delay:280ms]" />
+      </span>
     </div>
   );
 }
@@ -19,17 +23,13 @@ export function FullPageLoader({
   label?: string;
 }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f8f9fc] dark:bg-[#0d111c]">
+    <div className="flex min-h-screen items-center justify-center bg-white dark:bg-[#212121]">
       <div className="flex flex-col items-center gap-3">
         <div className="relative">
           <div className="absolute -inset-2 rounded-2xl bg-primary-500/10 blur-lg" />
 
           <div className="relative h-12 w-12 overflow-hidden rounded-2xl border border-white/80 bg-white shadow-[0_8px_25px_rgba(15,23,42,0.10)] dark:border-white/[0.08] dark:bg-white/[0.04]">
-            <img
-              src="/logo.png"
-              alt="Sova AI"
-              className="h-full w-full object-cover object-center"
-            />
+            <BrandMark className="h-full w-full" />
           </div>
         </div>
 

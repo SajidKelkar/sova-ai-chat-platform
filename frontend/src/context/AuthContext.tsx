@@ -6,13 +6,15 @@ import {
   type ReactNode,
 } from 'react';
 import { getProfile, normalizeProfile, type UserProfile } from '@/api/auth';
+import { isAuthError } from '@/api/client';
 
-type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
+type AuthStatus = 'authenticated' | 'unauthenticated';
 
 interface AuthContextValue {
   user: UserProfile | null;
   status: AuthStatus;
   isAuthenticated: boolean;
+  authError: string | null;
   checkAuth: () => Promise<boolean>;
   setUser: (user: UserProfile | null) => void;
   logoutFrontend: () => void;
@@ -22,7 +24,8 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [status, setStatus] = useState<AuthStatus>('loading');
+  const [status, setStatus] = useState<AuthStatus>('unauthenticated');
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const checkAuth = useCallback(async () => {
     try {
@@ -31,14 +34,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (profile && (profile._id || profile.id || profile.email)) {
         setUser(profile);
         setStatus('authenticated');
+        setAuthError(null);
         return true;
       }
       setUser(null);
       setStatus('unauthenticated');
+      setAuthError(null);
       return false;
-    } catch {
+    } catch (err) {
       setUser(null);
       setStatus('unauthenticated');
+      setAuthError(
+        isAuthError(err)
+          ? null
+          : err instanceof Error
+            ? err.message
+            : 'Unable to verify your session. Please try again.',
+      );
       return false;
     }
   }, []);
@@ -46,11 +58,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logoutFrontend = useCallback(() => {
     setUser(null);
     setStatus('unauthenticated');
+    setAuthError(null);
   }, []);
 
   return (
     <AuthContext.Provider
-      value={{ user, status, isAuthenticated: status === 'authenticated', checkAuth, setUser, logoutFrontend }}
+      value={{ user, status, isAuthenticated: status === 'authenticated', authError, checkAuth, setUser, logoutFrontend }}
     >
       {children}
     </AuthContext.Provider>

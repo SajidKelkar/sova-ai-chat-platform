@@ -1,4 +1,5 @@
 import User from "../models/user.model.js";
+import { resetUsageIfNeeded } from "../utils/userUsage.js";
 
 const loadUserMiddleware = async (req, res, next) => {
     try {
@@ -10,6 +11,7 @@ const loadUserMiddleware = async (req, res, next) => {
             });
         }
 
+        await resetUsageIfNeeded(existingUser);
         req.user = existingUser;
 
         next();

@@ -37,16 +37,16 @@ export function ConfirmDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-title"
     >
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-gray-950/45 backdrop-blur-[3px]"
         onClick={() => !loading && onCancel()}
       />
-      <div className="relative w-full max-w-md animate-scale-in rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-800 dark:bg-[#2f2f2f]">
+      <div className="relative w-full max-w-md rounded-[26px] border border-gray-200/80 bg-white p-6 shadow-[0_28px_90px_rgba(15,23,42,0.2)] dark:border-white/[0.1] dark:bg-[#25272b] sm:p-7">
         <div className="flex items-start gap-4">
           {variant === 'danger' && (
             <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-error-50 dark:bg-error-500/10">

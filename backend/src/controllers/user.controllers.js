@@ -1,6 +1,7 @@
 import User from "../models/user.model.js";
 import Chat from "../models/chat.model.js";
 import Message from "../models/message.model.js"
+import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { signupSchema,loginSchema } from "../validators/user.Validator.js";
@@ -178,33 +179,40 @@ export const profile = (req,res) =>{
 };
 
 export const deleteAccount = async (req,res) =>{
+    let session;
     try{
-
         const userId = req.user._id;
-
-        await Message.deleteMany({
-            userId
+        session = await mongoose.startSession();
+        await session.withTransaction(async () => {
+            await Message.deleteMany({ userId }, { session });
+            await Chat.deleteMany({ userId }, { session });
+            const deletedUser = await User.deleteOne({ _id: userId }, { session });
+            if (deletedUser.deletedCount !== 1) {
+                throw new Error("User no longer exists");
+            }
         });
 
-        await Chat.deleteMany({
-            userId
+        res.clearCookie("token", {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax"
         });
-
-        await User.deleteOne({
-            _id: userId
-        });
-
-        res.clearCookie("token",{ httpOnly: true, secure: true, sameSite: "none" });
 
         res.status(200).json({
             message: "Account deleted successfully"
         });
-
-
     }catch(err){
         console.log(err);
         return res.status(500).json({
             message: "Internal server error"
         })
+    }finally{
+        if(session){
+            try {
+                await session.endSession();
+            } catch (error) {
+                console.error("MongoDB session cleanup failed:", error);
+            }
+        }
     }
 };
