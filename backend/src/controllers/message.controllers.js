@@ -144,7 +144,7 @@ export const sendMessage = async (req,res) =>{
                         role: "assistant",
                         content: aiReply
                     }
-                ], { session });
+                ],{ session, ordered: true });
 
                 const chatUpdate = {
                     $inc: {
