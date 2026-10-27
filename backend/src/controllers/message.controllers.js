@@ -37,18 +37,7 @@ export const getMessage = async (req,res) =>{
         const message = await Message.find({
             chatId: chatId,
             userId: req.user._id
-        }).sort({ createdAt: 1 });
-
-        // const message = await Message.find(
-        // {
-        //     chatId: chatId,
-        //     userId: req.user._id
-        // },
-        // {
-        //     role: 1,
-        //     content: 1,
-        //     _id: 0
-        // }).sort({ createdAt: 1 });
+        }).sort({ createdAt: 1, _id: 1 });
 
         res.status(200).json({
             message: "Messages fetched seccessfull",
@@ -111,9 +100,10 @@ export const sendMessage = async (req,res) =>{
         }
 
         const oldMessages = await Message.find({
-            chatId: chat._id,           
+            chatId: chat._id,
+            userId: req.user._id
         })
-          .sort({ createdAt: 1 })
+          .sort({ createdAt: 1, _id: 1 })
           .skip(chat.summarizedTillMessageNumber);
 
         const messagesForAI = buildMessagesForAI({
@@ -122,10 +112,22 @@ export const sendMessage = async (req,res) =>{
             currentMessage: content.trim(),
         });
 
-        const { aiReply, usage } = await generateAiResponse({
-            model: chat.model,
-            messages: messagesForAI,
-        });
+        let aiResponse;
+        try {
+            aiResponse = await generateAiResponse({
+                model: chat.model,
+                messages: messagesForAI,
+            });
+        } catch (error) {
+            console.error(
+                "AI response generation failed:",
+                error instanceof Error ? error.message : "Unknown OpenRouter error"
+            );
+            return res.status(502).json({
+                message: "Unable to generate an AI reply right now. Please try again."
+            });
+        }
+        const { aiReply, model: responseModel, usage } = aiResponse;
         
         const session = await mongoose.startSession();
         let committedResult;
@@ -152,10 +154,13 @@ export const sendMessage = async (req,res) =>{
                         "usage.promptTokens": usage.promptTokens,
                         "usage.completionTokens": usage.completionTokens,
                         "usage.totalTokens": usage.totalTokens
+                    },
+                    $set: {
+                        model: responseModel
                     }
                 };
                 if (chat.topic === "New Chat") {
-                    chatUpdate.$set = { topic: content.trim().slice(0, 30) };
+                    chatUpdate.$set.topic = content.trim().slice(0, 30);
                 }
 
                 const chatResult = await Chat.updateOne(

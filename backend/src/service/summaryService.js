@@ -17,7 +17,7 @@ export const updateSummaryIfNeeded = async (chatId) => {
 
     const messagesToSummarize = await Message.find({
         chatId: chat._id,
-        }).sort({ createdAt: 1 })
+        }).sort({ createdAt: 1, _id: 1 })
           .skip(chat.summarizedTillMessageNumber)
           .limit(SUMMARY_CHUNK_SIZE);
 
