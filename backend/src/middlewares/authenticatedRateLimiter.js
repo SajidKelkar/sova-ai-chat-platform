@@ -28,7 +28,9 @@ const authenticatedRateLimiter = async (req, res, next) => {
         next();
     } catch (error) {
         console.log("Authenticated rate limiter error:", error);
-        next();
+        return res.status(503).json({
+            message: "Rate limiting is temporarily unavailable. Please try again."
+        });
     }
 };
 

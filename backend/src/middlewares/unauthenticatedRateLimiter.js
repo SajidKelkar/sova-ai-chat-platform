@@ -21,9 +21,9 @@ const unauthenticatedRateLimiter = async (req, res, next) => {
         next();
     } catch (error) {
         console.log("Unauthenticated rate limiter error:", error);
-
-        // If Redis fails, don't stop the entire application.
-        next();
+        return res.status(503).json({
+            message: "Rate limiting is temporarily unavailable. Please try again."
+        });
     }
 };
 

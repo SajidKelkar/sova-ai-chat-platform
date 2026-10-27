@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { TOKEN_LIMIT, TOKEN_WINDOW_SECONDS } from "../config/usage.js";
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -25,11 +26,11 @@ const userSchema = new mongoose.Schema({
     },
     tokenLimit: {
       type: Number,
-      default: 10000
+      default: TOKEN_LIMIT
     },
     resetAt: {
       type: Date,
-      default: () => new Date(Date.now() + 5 * 60 * 60 * 1000)
+      default: () => new Date(Date.now() + TOKEN_WINDOW_SECONDS * 1000)
     },
     totalTokenUsed: {
       type: Number,

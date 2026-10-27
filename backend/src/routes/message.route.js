@@ -13,7 +13,7 @@ messageRouter.use(authenticatedRateLimiter);
 
 
 messageRouter.get("/:chatId", loadUserMiddleware, getMessage);
-messageRouter.post("/", tokenUsageMiddleware, loadUserMiddleware, sendMessage);
-messageRouter.post("/:chatId", tokenUsageMiddleware, loadUserMiddleware, sendMessage);
+messageRouter.post("/", loadUserMiddleware, tokenUsageMiddleware, sendMessage);
+messageRouter.post("/:chatId", loadUserMiddleware, tokenUsageMiddleware, sendMessage);
 
 export default messageRouter;

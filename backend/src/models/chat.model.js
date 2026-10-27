@@ -26,6 +26,14 @@ const chatSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  summaryLockId: {
+    type: String,
+    default: null
+  },
+  summaryLockExpiresAt: {
+    type: Date,
+    default: null
+  },
   messageCount: {
     type: Number,
     default: 0

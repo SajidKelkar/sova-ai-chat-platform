@@ -1,29 +1,29 @@
 import Chat from "../models/chat.model.js"
 import Message from "../models/message.model.js";
+import { isAllowedModel } from "../config/models.js";
+import mongoose from "mongoose";
 
 
 export const createChat = async (req,res)=>{
     try{
 
-        const {model} = req.body;
-        if(!model){
+        const {model} = req.body || {};
+        if(typeof model !== "string" || !isAllowedModel(model.trim())){
             return res.status(400).json({
-                message: "model name is missing"
+                message: "model is missing or not enabled for this application"
             })
         }
 
-        // ..
-
         const createdChat = await Chat.create({
             userId: req.user._id,
-            model
+            model: model.trim()
         })
 
         res.status(200).json({
             message: "chat created successfully",
             chatId: createdChat._id,
             userId: req.user._id,
-            model,
+            model: model.trim(),
             topic: createdChat.topic,
             createdAt: createdChat.createdAt
         })
@@ -47,20 +47,43 @@ export const deleteChat = async (req,res)=>{
             })
         }
 
+        if (!mongoose.Types.ObjectId.isValid(chatId)) {
+            return res.status(400).json({
+                message: "chat id not valid"
+            });
+        }
+
         const userChat = await Chat.findOne({_id: chatId, userId: req.user._id});
         if(!userChat){
-            return res.status(400).json({
-                message: "chat not found!"
+            return res.status(404).json({
+                message: "chat not found"
             })
         }
 
-        await Message.deleteMany({
-            chatId: userChat._id
-        });
-        
-        await Chat.deleteOne({
-            _id: chatId
-        });
+        const session = await mongoose.startSession();
+        try {
+            await session.withTransaction(async () => {
+                await Message.deleteMany({
+                    chatId: userChat._id,
+                    userId: req.user._id
+                }, { session });
+
+                const result = await Chat.deleteOne({
+                    _id: chatId,
+                    userId: req.user._id
+                }, { session });
+
+                if (result.deletedCount !== 1) {
+                    throw new Error("Chat no longer exists");
+                }
+            });
+        } finally {
+            try {
+                await session.endSession();
+            } catch (error) {
+                console.error("MongoDB session cleanup failed:", error);
+            }
+        }
 
         res.status(200).json({
             message: "Your chat is deleted"
@@ -103,9 +126,15 @@ export const getSingleChat = async (req,res)=>{
             })
         }
 
+        if (!mongoose.Types.ObjectId.isValid(chatId)) {
+            return res.status(400).json({
+                message: "chat id not valid"
+            });
+        }
+
         const userChat = await Chat.findOne({ _id: chatId, userId: req.user._id});
         if(!userChat){
-            return res.status(400).json({
+            return res.status(404).json({
                 message: "Chat not found"
             })
         }

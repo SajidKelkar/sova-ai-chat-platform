@@ -6,6 +6,7 @@ import { generateAiResponse } from "../service/openRouterService.js";
 import { updateSummaryIfNeeded } from "../service/summaryService.js";
 import { buildMessagesForAI } from "../utils/chatContext.js";
 import { redisClient } from "../config/redis.js";
+import { isAllowedModel } from "../config/models.js";
 
 export const getMessage = async (req,res) =>{
     try{
@@ -33,6 +34,11 @@ export const getMessage = async (req,res) =>{
                 message: "chat not found"
             })
         }
+        if (!isAllowedModel(chat.model)) {
+            return res.status(400).json({
+                message: "This conversation uses a model that is not enabled for this application."
+            });
+        }
 
         const message = await Message.find({
             chatId: chatId,
@@ -53,18 +59,26 @@ export const getMessage = async (req,res) =>{
 }
 
 export const sendMessage = async (req,res) =>{
+    let chat;
+    let isNewChat = false;
     try{
 
         const {chatId} = req.params;
-        const {content, model} = req.body;
+        const {content, model} = req.body || {};
+        const normalizedContent = typeof content === "string" ? content.trim() : "";
 
-        if(!content || content.trim() === ""){
+        if(!normalizedContent){
             return res.status(400).json({
                 message: "content required"
             })
         }
 
-        let chat;
+        if (normalizedContent.length > 20000) {
+            return res.status(413).json({
+                message: "content must be 20000 characters or fewer"
+            });
+        }
+
         if(chatId){ 
             // chatId exists, chatId is provided in req.params
 
@@ -86,17 +100,17 @@ export const sendMessage = async (req,res) =>{
         }else{
             // new chat, no chatId is provided in req.params
 
-            if(!model){
+            if(typeof model !== "string" || !isAllowedModel(model.trim())){
                 return res.status(400).json({
-                    message: "model name required"
+                    message: "model is missing or not enabled for this application"
                 })
             }
-            chat = await Chat.create({
+            chat = new Chat({
                 userId: req.user._id,
-                model,
-                topic: content.trim().slice(0,30)
+                model: model.trim(),
+                topic: normalizedContent.slice(0,30)
             })
-
+            isNewChat = true;
         }
 
         const oldMessages = await Message.find({
@@ -109,7 +123,7 @@ export const sendMessage = async (req,res) =>{
         const messagesForAI = buildMessagesForAI({
             chat,
             oldMessages,
-            currentMessage: content.trim(),
+            currentMessage: normalizedContent,
         });
 
         let aiResponse;
@@ -133,12 +147,16 @@ export const sendMessage = async (req,res) =>{
         let committedResult;
         try {
             committedResult = await session.withTransaction(async () => {
+                if (isNewChat) {
+                    await chat.save({ session });
+                }
+
                 const [userMessage, assistantMessage] = await Message.create([
                     {
                         userId: req.user._id,
                         chatId: chat._id,
                         role: "user",
-                        content: content.trim()
+                        content: normalizedContent
                     },
                     {
                         userId: req.user._id,
@@ -160,7 +178,7 @@ export const sendMessage = async (req,res) =>{
                     }
                 };
                 if (chat.topic === "New Chat") {
-                    chatUpdate.$set.topic = content.trim().slice(0, 30);
+                    chatUpdate.$set.topic = normalizedContent.slice(0, 30);
                 }
 
                 const chatResult = await Chat.updateOne(
@@ -207,12 +225,6 @@ export const sendMessage = async (req,res) =>{
                 usage.totalTokens
             );
 
-            if (tokenUsed === usage.totalTokens) {
-                await redisClient.expire(
-                    req.tokenUsageKey,
-                    Number(process.env.TOKEN_WINDOW_SECONDS)
-                );
-            }
         } catch (error) {
             console.error("Redis token usage update failed after message commit:", error);
         }
@@ -223,7 +235,7 @@ export const sendMessage = async (req,res) =>{
             reply: aiReply,
             usage,
             tokenUsed,
-            tokenLimit: Number(process.env.TOKEN_LIMIT),
+            tokenLimit: req.user.usage.tokenLimit,
             userMessage: committedResult.userMessage,
             assistantMessage: committedResult.assistantMessage
         })
